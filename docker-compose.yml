@@ -1,0 +1,63 @@
+version: '3.1'
+
+services:
+  swoft:
+    image: "swoft:1.2"
+    build:
+      context: ./
+      dockerfile: Dockerfile-swoft
+    container_name: swoft-admin
+    ports:
+      - "8004:18306"
+    volumes:
+      - ./:/var/www:rw
+    stdin_open: true
+    tty: true
+    privileged: true
+    restart: always
+    depends_on:
+      - swoft-admin-mysql
+      - swoft-admin-redis
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ ! -d "vendor" ];then
+        composer install
+        composer dump-autoload
+        composer clearcache
+        fi
+        php bin/swoft http:start
+  #MYSQL
+  swoft-admin-mysql:
+    image: 'mysql:5.7'
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data/mysql/swoft-admin:/var/lib/mysql
+      - ./my.cnf:/etc/my.cnf
+      - ./sql:/docker-entrypoint-initdb.d/
+    environment:
+      MYSQL_ROOT_PASSWORD: 'root'
+      MYSQL_DATABASE: auth_service
+    restart: always
+    container_name: swoft-admin-mysql
+
+  #REDIS
+  swoft-admin-redis:
+    image: 'redis:5.0.4-alpine'
+    ports:
+      - "6379:6379"
+    restart: always
+    container_name: swoft-admin-redis
+  swoft-admin-nginx:
+    image: 'nginx:1.15.9-alpine'
+    container_name: swoft-admin-nginx
+    ports:
+      - "8084:80"
+    volumes:
+      - ./web/dist/:/usr/share/nginx/html:ro
+    stdin_open: true
+    tty: true
+    privileged: true
+    restart: always
